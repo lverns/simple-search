@@ -102,9 +102,20 @@
     (map #(if (< (rand) mutation-rate) (- 1 %) %) choices)))
 
 (defn mutate-answer
-  [answer]
+  [answer _ _]
   (make-answer (:instance answer)
                (mutate-choices (:choices answer))))
+
+(defn mutate-choices-annealing
+  [choices k max-tries]
+  (let [mutation-rate (/ (- max-tries k) max-tries)] ;FIXME
+    (map #(if (< (rand) mutation-rate) (- 1 %) %) choices)))
+
+
+(defn mutate-answer-annealing
+  [answer k max-tries]
+  (make-answer (:instance answer)
+               (mutate-choices-annealing (:choices answer) k)))
 
 ; (def ra (random-answer knapPI_11_20_1000_1))
 ; (mutate-answer ra)
@@ -113,7 +124,7 @@
   [mutator scorer instance max-tries]
   (loop [current-best (add-score scorer (random-answer instance))
          num-tries 1]
-    (let [new-answer (add-score scorer (mutator current-best))]
+    (let [new-answer (add-score scorer (mutator current-best num-tries max-tries))]
       (if (>= num-tries max-tries)
         current-best
         (if (> (:score new-answer)
