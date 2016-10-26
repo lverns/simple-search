@@ -108,14 +108,14 @@
 
 (defn mutate-choices-annealing
   [choices k max-tries]
-  (let [mutation-rate (/ (- max-tries k) max-tries)] ;FIXME
+  (let [mutation-rate (/ (- max-tries k) max-tries)]
     (map #(if (< (rand) mutation-rate) (- 1 %) %) choices)))
 
 
 (defn mutate-answer-annealing
   [answer k max-tries]
   (make-answer (:instance answer)
-               (mutate-choices-annealing (:choices answer) k)))
+               (mutate-choices-annealing (:choices answer) k max-tries)))
 
 ; (def ra (random-answer knapPI_11_20_1000_1))
 ; (mutate-answer ra)
