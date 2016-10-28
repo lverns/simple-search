@@ -106,16 +106,16 @@
   (make-answer (:instance answer)
                (mutate-choices (:choices answer))))
 
-(defn mutate-choices-annealing
+(defn mutate-choices-magic
   [choices k max-tries]
-  (let [mutation-rate (/ (- max-tries k) max-tries)]
+  (let [mutation-rate (+ 0.25 (* 0.50 (/ (- max-tries k) max-tries)))]
     (map #(if (< (rand) mutation-rate) (- 1 %) %) choices)))
 
 
-(defn mutate-answer-annealing
+(defn mutate-answer-magic
   [answer k max-tries]
   (make-answer (:instance answer)
-               (mutate-choices-annealing (:choices answer) k max-tries)))
+               (mutate-choices-magic  (:choices answer) k max-tries)))
 
 ; (def ra (random-answer knapPI_11_20_1000_1))
 ; (mutate-answer ra)
@@ -131,6 +131,24 @@
                (:score current-best))
           (recur new-answer (inc num-tries))
           (recur current-best (inc num-tries)))))))
+
+(defn simulated-annealing
+  [mutator scorer instance max-tries]
+  (loop [current (add-score scorer (random-answer instance))
+         num-tries 1
+         best current]
+    (let [new-answer (add-score scorer (mutator current num-tries max-tries))
+          temp (/ num-tries max-tries)]
+      (if (>= num-tries max-tries)
+        best
+        (let [s (if (or (> (:score new-answer) (:score current))
+                        (> (rand) temp))
+                  new-answer
+                  current)]
+        (if (> (:score s) (:score best))
+          (recur s (inc num-tries) s)
+          (recur s (inc num-tries) best)))))))
+
 
 ; (time (random-search score knapPI_16_200_1000_1 100000
 ; ))

@@ -67,16 +67,18 @@
   (ns simple-search.experiment)
   (print-experimental-results
    (run-experiment [(with-meta
-                      (partial core/hill-climber core/mutate-answer core/score)
-                      {:label "hill_climber_cliff_score"})
-                    (with-meta
-                      (partial core/hill-climber core/mutate-answer core/penalized-score)
-                      {:label "hill_climber_penalized_score"})
-                    (with-meta (partial core/random-search core/score)
-                      {:label "random_search"})
-                    (with-meta
-                      (partial core/hill-climber core/mutate-answer-annealing core/penalized-score)
-                      {:label "hill_climber_annealing_penalized_score"})]
+;;                      (partial core/hill-climber core/mutate-answer core/score)
+;;                      {:label "hill_climber_cliff_score"})
+;;                    (with-meta
+;;                      (partial core/hill-climber core/mutate-answer core/penalized-score)
+;;                      {:label "hill_climber_penalized_score"})
+;;                    (with-meta (partial core/random-search core/score)
+;;                      {:label "random_search"})
+;;                    (with-meta
+;;                       (partial core/hill-climber core/mutate-answer-magic core/penalized-score)
+;;                       {:label "hill_climber_annealing_penalized_score"})
+                      (partial core/simulated-annealing core/mutate-answer core/penalized-score)
+                      {:label "annealing_penalized_score"})]
                    (map get-labelled-problem
                         ["knapPI_11_20_1000_4" "knapPI_13_20_1000_4" "knapPI_16_20_1000_4"
                          "knapPI_11_200_1000_4" "knapPI_13_200_1000_4" "knapPI_16_200_1000_4"])
