@@ -1,0 +1,125 @@
+---
+title: "Knapsack experiments Group 2 write-up"
+author: "Henry Fellows, Laverne Schrock, Jack Ziegler"
+date: "October 31, 2016"
+output: 
+  html_document:
+    toc: true
+---
+
+# Introduction
+
+In this set of experiments we explore the performance of five different search techniques on a set of six knapsack problems. 
+
+Our first two methods are some of those included initially. The first method is simple random search (labelled `random` in the results), which generated `max-tries` different random answers and returns the best from that pool. Our second search method is using the hill climber that we were given to start with. We implemented two alternative search techniques. The first of _our_ techniques (third overall) is named pseudo-annealing and essentially boils down to modifying the chance of flipping a particular bit by starting at 75% and decreasing uniformly down to 25% across all iterations. The fourth method is a simplified implementation of simulated annealing, using a random chance calculation to keep an inferior solution. Finally, we have implemented proper simulated annealing as defined in Sean Luke's book.
+
+All of our techniques use the penalized score calculation in order to evaluate the solution. This is calculated by adding up the values of everything that are in the knapsack if the solution fits in the knapsack, and is $0 - \textit{combined-item-weights}$ if the solution does not fit.
+
+The mutation operator (except for our "magic" method) uses a common approach in genetic algorithms of flipping a bit with probability $1/N$ where $N$ is the length of the bit string. Thus we'll flip bits with a probability $1/20$ for a bitstring of length 20 (i.e., a knapsack problem with 20 items), and with probability $1/200$ for a bitstring of length 20. This means that we'll flip one bit on average, but sometimes flip several, and sometimes flip none.
+
+Half of the runs were done with 1,000 iterations and half were done with 10,000 iterations.
+
+# Experimental setup
+
+We applied each combination of these 5 searchers and two values of `max-tries` to fairly randomly chosen knapsack problems:
+
+* `knapPI_11_20_1000_4`
+* `knapPI_13_20_1000_4` 
+* `knapPI_16_20_1000_4`
+* `knapPI_11_200_1000_4`
+* `knapPI_13_200_1000_4`
+* `knapPI_16_200_1000_4`
+
+(These names are abbreviated to, e.g., `k_11_20_4`, in diagrams below.) Half of these are 20 item problems, and half are 200 item problems. Ultimately we'll probably want to apply our techniques to larger problems, but again the goal here was to try to understand the differences between our three search techniques.
+
+We did 100 indepedent runs of each treatment on each problem, for a total of
+
+$$5 \times 6 \times 100 = 3000 \textrm{ runs}$$
+
+# Results
+
+## A basic comparison of the searchers
+
+With the exceptions of the hill-climber and annealing methods, all of our data finds values in the negative range. Hill climber and the proper annealing method seem to be far superior to the other 3 methods. Simple annealing is somewhere in the middle, and pseudo annealing seems to be only little better (if at all) than random search.
+
+```{r}
+data_50_runs <- read.csv("../data/group2_combined_data.txt", sep="")
+data_1000 <- data_50_runs[data_50_runs$Max_evals == 1000,]
+
+plot(data_1000$Score ~ data_1000$Search_method,
+     xlab="Searcher", ylab="Score",names=c("annealing", "h_climb", "pseudo_a", "random", "simple_a"))
+```
+
+About a third of all runs are below zero. These are spread across all 6 of the problems.
+
+```{r}
+negs <- subset(data_1000, Score<0)
+nrow(negs)
+unique(negs$Problem)
+```
+
+Since we are also interested in finding a *valid* solution to the problem, here's a version with only the non-negative values adjusted to zero. However, we won't be using this data in the future, as we feel it isn't actually representative of the utility of the search method. The negative values are important, as a search algorithm that generates a few *really good* values but many many more very *bad* values is inferior to something that can reliably provide good scores.
+
+```{r}
+data_1000$Non_negative_score = ifelse(data_1000$Score<0, 0, data_1000$Score)
+
+plot(data_1000$Non_negative_score ~ data_1000$Search_method,
+     xlab="Searcher", ylab="Score",names=c("annealing", "h_climb", "pseudo_a", "random", "simple_a"))
+```
+
+This seems to follow with our expectations since we had already (softly) concluded that annealing and hill climber were better than the others. An interesting point is that the simple annealing *also* occasionally produces very good results on the upper bound, even to the point of closing in on the upper bounds for hill climber/annealing.
+
+```{r}
+pairwise.wilcox.test(data_1000$Score, data_1000$Search_method)
+```
+
+All the differences are strongly significant, with $p<2^{-16}$ in each case, with the exception of hill climber and annealing which are less likely to be different. There is evidence to suggest that hill climber and annealing are different, though the evidence is somewhat weak.
+
+## How do things change by problem? Max evals?
+
+We can see here that there is some difference in the 
+
+```{r}
+plot(data_1000$Non_negative_score ~ data_1000$Problem,
+     xlab="Searcher", ylab="Score")
+```
+
+There are clearly differences. Some, such as the much higher values on the rightmost boxplot, are likely at least partly because of differences in the maximum possible values of the problems. Others seem to be more about the difficulty of the problems; the second problem (`knapPI_11_200_1000_4`) has a lower median than several other problems despite having an apparently higher possible value, suggesting that it's harder than those problems (at least for these searchers).
+
+The following plot shows the performance broken out by essentially _all_ our independent variables: Searcher, problem, and `max-tries`.
+
+```{r warning=FALSE}
+library("ggplot2")
+
+ggplot(data_1000, 
+       aes(x=factor(Max_evals), y=Non_negative_score, group=Max_evals)) + 
+  geom_boxplot() + facet_grid(Search_method ~ Problem)
+```
+
+Reading this horizontally shows differences in the problems with, for example, `knapPI_16_200_1000_4` clearly having much higher values (at least for `HC_penalty`) than any of the other problems. Reading the columns vertically shows differences across searchers for a specific problem; it's clear for example that whatever advantage `HC_penalty` has is *much* stronger on the 200 item problems, where the other two searchers never get above zero.
+
+This also suggests that using 10,000 tries instead of 1,000 often didn't change things much. There are exceptions (e.g., `knapPI_16_2000_1000_4` on `HC_penalty` again), but typically the medians are quite close. This suggests that we might stick to 1,000 tries in future _initial_ explorations, and only switch to larger number of tries when we've identified which searchers, etc., we're especially interested in.
+
+## Recursive partitioning
+
+The results in the previous plot separating things by problem, searcher, and `max-tries` suggests that the interactions of the independent variables is somewhat complex, so I used `rpart` to try to understand the relative importance of the many differences.
+
+```{r}
+library("rpart")
+library("rpart.plot")
+
+rp <- rpart(Non_negative_score ~ Search_method + Problem + Max_evals, data=data_1000)
+rp
+
+rpart.plot(rp, type=3, extra=100)
+```
+
+This indicates that despite the various differences between problems and different values of maximum evaluations, the choice of search searcher is the most important first-order difference, splitting on `HC_penalty` (on the right) vs. the other two searchers. After that split, though, the problems were the next most important factor along both branches. Focussing on the more interesting searcher (`HC_penalty`), `knapPI_16_200_1000_4` was "different" than the others, which isn't surprising given the substantially higher maximum values found on that problem than on the other problems. Once `rpart` is focusing on that particular problem, it also highlights the substantial difference between the 1,000 and 10,000 maximum evaluation runs.
+
+# Conclusions
+
+Based on these runs, it's clear that at least for these six problems `HC_penalty` is consistently as good or, in some cases, substantially better than the other two searchers tried here. This suggests that having a gradient to act on in the "illegal" part of the search space is a significant advantage on these problems.
+
+Have more evaluations does sometimes help, and occassionally quite a bit, but it often doesn't make a substantial difference, especially on the easier problems. So I might consider starting with just 1,000 evaluations in future explorations, saving the higher number of evaluations for when I've narrowed down the pool of search tools I really want to explore more deeply. (That would also be a good time to include some test problems with more items.)
+
+Laslty, the facetted plot and the `rpart` analysis make it clear that I _really_ should normalize my data by dividing all my scores by the highest score found for a given problem. That would reduce effects caused by disproportionate maximum values for problems like `knapPI_16_200_1000_4`, and allow tools like `rpart` to focus on differences caused by the choice of searchers or maximum evaluations.

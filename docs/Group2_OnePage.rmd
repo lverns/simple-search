@@ -1,0 +1,27 @@
+---
+title: "Knapsack Experiments Group 2 Summary"
+author: "Henry Fellows, Laverne Schrock, Jack Ziegler"
+output:
+  pdf_document:
+  html_document:
+    toc: yes
+---
+##Search Methods:
+For our experiment, we compared the results of five different search methods. The first two were the **hill climber** and **random search** we started with. Our three new search implementations were variations on simulated annealing. We call them **pseudo-annealing**, **simple-annealing**, and **annealing**.
+
+Our data represents 100 runs of each search method, on each problem, with 1000 iterations.
+
+## Results
+
+The Hill climber and annealing methods seem to be far superior to the other 3 methods. Simple annealing is somewhere in the middle, and pseudo annealing seems to be only little better (if at all) than random search.
+
+```{r, echo=FALSE}
+data_50_runs <- read.csv("../data/group2_combined_data.txt", sep="")
+data_1000 <- data_50_runs[data_50_runs$Max_evals == 1000,]
+
+plot(data_1000$Score ~ data_1000$Search_method,
+     xlab="Searcher", ylab="Score",names=c("annealing", "h_climb", "pseudo_a", "random", "simple_a"))
+
+pairwise.wilcox.test(data_1000$Score, data_1000$Search_method)
+```
+
