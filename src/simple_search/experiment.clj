@@ -77,6 +77,9 @@
                     (with-meta
                        (partial core/hill-climber core/mutate-answer-magic core/penalized-score)
                        {:label "pseudo_annealing"})
+                     (with-meta
+                      (partial core/wrong-simulated-annealing core/mutate-answer core/penalized-score)
+                      {:label "wrong_annealing"})
                     (with-meta
                       (partial core/simulated-annealing core/mutate-answer core/penalized-score)
                       {:label "annealing"})
