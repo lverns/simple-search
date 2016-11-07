@@ -2,7 +2,8 @@
   (:use simple-search.knapsack-examples.knapPI_11_20_1000
         simple-search.knapsack-examples.knapPI_13_20_1000
         simple-search.knapsack-examples.knapPI_16_20_1000
-        simple-search.knapsack-examples.knapPI_16_200_1000))
+        simple-search.knapsack-examples.knapPI_16_200_1000)
+  (:require [clojure.math.numeric-tower :as math]))
 
 ;;; An answer will be a map with (at least) four entries:
 ;;;   * :instance
@@ -132,7 +133,8 @@
           (recur new-answer (inc num-tries))
           (recur current-best (inc num-tries)))))))
 
-(defn simulated-annealing
+
+(defn wrong-simulated-annealing
   [mutator scorer instance max-tries]
   (loop [current (add-score scorer (random-answer instance))
          num-tries 1
@@ -143,6 +145,24 @@
         best
         (let [s (if (or (> (:score new-answer) (:score current))
                         (> (rand) temp))
+                  new-answer
+                  current)]
+        (if (> (:score s) (:score best))
+          (recur s (inc num-tries) s)
+          (recur s (inc num-tries) best)))))))
+
+
+(defn simulated-annealing
+  [mutator scorer instance max-tries]
+  (loop [current (add-score scorer (random-answer instance))
+         num-tries 1
+         best current]
+    (let [new-answer (add-score scorer (mutator current num-tries max-tries))
+          temp (/ num-tries max-tries)]
+      (if (>= num-tries max-tries)
+        best
+        (let [s (if (or (> (:score new-answer) (:score current))
+                        (< (rand) (math/expt 2.7182818284 (/ (- (:score new-answer) (:score current)) temp))))
                   new-answer
                   current)]
         (if (> (:score s) (:score best))
