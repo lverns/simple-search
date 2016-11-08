@@ -2,9 +2,11 @@
 title: "Knapsack experiments Group 2 write-up"
 author: "Henry Fellows, Laverne Schrock, Jack Ziegler"
 date: "October 31, 2016"
-output: 
+output:
+  pdf_document:
+    toc: no
   html_document:
-    toc: true
+    toc: yes
 ---
 
 
@@ -105,7 +107,13 @@ points(annealing$Score ~ annealing$Eval_levels, pch=1)
 
 plot(hill$Score ~ hill$Eval_levels, border="white") #We don't actually want the boxplot here.
 points(hill$Score ~ hill$Eval_levels, pch=1)
+
+
+subdata <- combined_data[combined_data$Search_method == "annealing" | combined_data$Search_method == "hill_climber",]
+subdata$newCategory = paste(subdata$Search_method, subdata$Max_evals, sep="_")
+plot(subdata$Score ~ as.factor(subdata$newCategory), pch=1)
 ```
+
 
 Interesting features include the banding (which is by problem; the densest points are an optimal solution to a problem instance. At 10,000 iterations, the point clouds are divided into 'solved' and 'unsolved' problems. Another feature is the diffence between the change from 1,000 to 10,000 between both search methods. It's a bit subtle, but annealing does better (p = 0.041 as noted above) at  lower iterations, but hill climbing catches up with it at 10,000. Compare the p-value of the pairwise wilcoxon at Max_evals at 10,000:
 
@@ -113,24 +121,12 @@ Interesting features include the banding (which is by problem; the densest point
 pairwise.wilcox.test(data_10000$Score, data_10000$Search_method)
 ```
 A p-value of 0.98 suggests that both methods are unlikely to be different. Formally, it fails to reject the null hypothesis, and we cannot accept the alternate hypothesis. Informally, it is extremely unlikely that hill climber and simulated annealing have different performance with 10,000 Max_evals.
-## Recursive partitioning
-Recursive partitioning shows many of the patterns we had internalized had roots in the actual data. 
-
-```{r}
-rp <- rpart(Score ~ Search_method + Problem + Max_evals, data=combined_data)
-rp
-rpart.plot(rp, type=3, extra=100)
-```
-
-The first choice is between pseudo-annealing and random or annealing, hill climbing or simple annealing. From there, the breakdowns are per problem or between simple annealing and the combination of hill-climbing and annealing. The lowest level on the simple annealing branch is a split between 1,000 and 10,000 Max_evals, showing
 
 
-This indicates that despite the various differences between problems and different values of maximum evaluations, the choice of search searcher is the most important first-order difference, splitting on `HC_penalty` (on the right) vs. the other two searchers. After that split, though, the problems were the next most important factor along both branches. Focusing on the more interesting searcher (`HC_penalty`), `knapPI_16_200_1000_4` was "different" than the others, which isn't surprising given the substantially higher maximum values found on that problem than on the other problems. Once `rpart` is focusing on that particular problem, it also highlights the substantial difference between the 1,000 and 10,000 maximum evaluation runs.
 
 # Conclusions
 
-Based on these runs, it's clear that at least for these six problems `HC_penalty` is consistently as good or, in some cases, substantially better than the other two searchers tried here. This suggests that having a gradient to act on in the "illegal" part of the search space is a significant advantage on these problems.
+On the problems that the algorithms were tested on, simulated annealing matched the performance of hill climbing. We suspect that in certain instances, annealing would beat hill climbing, but this is not the general case. Part of our reason for guessing this is due to the wider range of solutions explored by annealing, as evidenced by our final boxplot above. In some problem spaces, a wider search will be the only way to find a good solution, such as data that is relatively "bumpy" where good peaks are rare. The fact that our values are so consistent across all runs indicates that there's a "win" that both our search algorithms are finding in most cases, especially on the smaller problems.
 
-Have more evaluations does sometimes help, and occasionally quite a bit, but it often doesn't make a substantial difference, especially on the easier problems. So I might consider starting with just 1,000 evaluations in future explorations, saving the higher number of evaluations for when I've narrowed down the pool of search tools I really want to explore more deeply. (That would also be a good time to include some test problems with more items.)
 
-Lastly, the faceted plot and the `rpart` analysis make it clear that I _really_ should normalize my data by dividing all my scores by the highest score found for a given problem. That would reduce effects caused by disproportionate maximum values for problems like `knapPI_16_200_1000_4`, and allow tools like `rpart` to focus on differences caused by the choice of searchers or maximum evaluations.
+We note that additional evaluations provide much higher scores, by allowing the search to climb out of the negative values. However, the upper values remain relatively unchanged, meaning that we are probably finding a small number of "hills" in each problem.
